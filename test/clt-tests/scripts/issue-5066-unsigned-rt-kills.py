@@ -36,7 +36,11 @@ def replace_batch(conn, table, ids, revision):
     response = conn.getresponse()
     body = response.read()
     result = json.loads(body)
-    if response.status != 200 or result.get("errors") is not False or len(result.get("items", [])) != len(ids):
+    # /bulk groups consecutive REPLACEs into one transaction summary, not one item per row.
+    items = result.get("items", [])
+    bulk = items[0].get("bulk", {}) if len(items) == 1 else {}
+    if (response.status != 200 or result.get("errors") is not False
+            or result.get("skipped_lines") != 0 or bulk.get("created") != len(ids)):
         raise AssertionError(f"bulk replacement failed: HTTP {response.status}: {body[:500]!r}")
 
 
